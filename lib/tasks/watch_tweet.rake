@@ -6,6 +6,12 @@ namespace :watch_tweet do
     filter = {:locations => '129.30,30.98,147.14,45.80'}
     TweetStream::Client.new.filter(filter) do |status|
       p status.text
+      user = User.find_or_create_by({:twitter_user_id => status.user.id})
+      # binding.pry
+      tweet_id = status.id
+      lat, lon = status.geo.coordinates
+      log = user.logs.build({:lat => lat, :lon => lon, :tweet_id => tweet_id})
+      user.save
     end
   end
 
