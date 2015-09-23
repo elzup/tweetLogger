@@ -22,3 +22,7 @@
 # notes
 env.sh
 memo.sql
+
+
+# secret password
+config/database.yml
