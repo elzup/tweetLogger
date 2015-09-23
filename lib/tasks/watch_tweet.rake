@@ -8,11 +8,11 @@ namespace :watch_tweet do
     puts 'load'
     filter = {:locations => '129.30,30.98,147.14,45.80'}
     # binding.pry
-    word_lib = load_lib()
+    libs = load_lib
     nm = Natto::MeCab.new
 
     TweetStream::Client.new.filter(filter) do |status|
-      user = User.find_or_create_by({ :twitter_user_id => status.user.id })
+      user = User.find_or_create_by({:twitter_user_id => status.user.id})
       tweet_id = status.id
       # HACK: to def, data binding check
       if status.geo.nil?
@@ -21,8 +21,7 @@ namespace :watch_tweet do
       lat, lon = status.geo.coordinates
 
       # HACK:
-      point = calc_emotion_point(status.text, word_lib, nm)
-      p point
+      point = calc_emotion_point(status.text, libs, nm)
       params = {
           :lat => lat,
           :lon => lon,
@@ -32,7 +31,8 @@ namespace :watch_tweet do
       }
       user.logs.build(params)
       user.save
-      p status.text
+      p "#{point} #{status.text}"
+      p "\n\n"
     end
   end
 
@@ -45,24 +45,29 @@ namespace :watch_tweet do
   end
 
   def load_lib
-    json_path = Rails.root.join('dict', 'pn_ja.json')
-    lib = open(json_path) do |io|
-      JSON.load(io)
+    posi_lib_path = Rails.root.join('dict', 'posi.dict')
+    nega_lib_path = Rails.root.join('dict', 'nega.dict')
+    lib = []
+    [posi_lib_path, nega_lib_path].each do |path|
+      lines = IO.readlines(path)
+      lines.each {|line| line.chomp!}
+      lib << lines
     end
     lib
   end
 
-  def calc_emotion_point(text, word_lib, nm)
-      nm.parse(text) do |n|
-        features = n.feature.split(',')
-        # 品詞を取得
-        speech = features[0]
-        # 原形を取得
-        word = features[6]
-        if ! word_lib.key?(speech) or !word_lib[speech].key?(word)
-          next
-        end
-        point += word_lib[speech][word].to_f
+  def calc_emotion_point(text, libs, nm)
+    point = 0
+    nm.parse(text) do |n|
+      features = n.feature.split(',')
+      # 原形を取得
+      word = features[6]
+      if libs[0].include? word
+        point += 1
+      elsif libs[1].include? word
+        point -= 1
       end
+    end
+    [[point, 5].min, -5].max
   end
 end
