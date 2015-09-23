@@ -1,3 +1,5 @@
+require 'date'
+
 namespace :watch_tweet do
   desc 'ストリーミングで位置情報付きツイートを監視'
   # NOTE: :environment で model にアクセス
@@ -5,12 +7,20 @@ namespace :watch_tweet do
     puts 'load'
     filter = {:locations => '129.30,30.98,147.14,45.80'}
     TweetStream::Client.new.filter(filter) do |status|
-      p status.text
       user = User.find_or_create_by({:twitter_user_id => status.user.id})
-      # binding.pry
       tweet_id = status.id
+      if status.geo.nil?
+        next
+      end
+      p status.text
       lat, lon = status.geo.coordinates
-      log = user.logs.build({:lat => lat, :lon => lon, :tweet_id => tweet_id})
+      params = {
+          :lat => lat,
+          :lon => lon,
+          :tweet_id => tweet_id,
+          :tweet_created_at => status.created_at
+      }
+      log = user.logs.build(params)
       user.save
     end
   end
